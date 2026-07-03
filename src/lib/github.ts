@@ -1,22 +1,7 @@
+import { useStore } from "./store";
+
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
 const AUTH_PROXY = import.meta.env.VITE_AUTH_PROXY_URL;
-
-const TOKEN_KEY = "gh_token";
-const USER_KEY = "gh_user";
-
-export const getToken = (): string | null => {
-  return localStorage.getItem(TOKEN_KEY);
-};
-
-export const clearAuth = () => {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-};
-
-export const getCachedUser = (): GitHubUser | null => {
-  const raw = localStorage.getItem(USER_KEY);
-  return raw ? JSON.parse(raw) : null;
-};
 
 export interface DeviceCodeResponse {
   device_code: string;
@@ -65,7 +50,7 @@ export const pollForToken = async (
     const data = await res.json();
 
     if (data.access_token) {
-      localStorage.setItem(TOKEN_KEY, data.access_token);
+      useStore.getState().setToken(data.access_token);
       return data.access_token;
     }
 
@@ -95,7 +80,7 @@ export const pollForToken = async (
 export const fetchGitHub = async <T = unknown>(
   endpoint: string,
 ): Promise<T> => {
-  const token = getToken();
+  const token = useStore.getState().token;
   const res = await fetch(`https://api.github.com${endpoint}`, {
     headers: {
       Accept: "application/vnd.github+json",
@@ -108,6 +93,6 @@ export const fetchGitHub = async <T = unknown>(
 
 export const fetchCurrentUser = async (): Promise<GitHubUser> => {
   const user = await fetchGitHub<GitHubUser>("/user");
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  useStore.getState().setUser(user);
   return user;
 };

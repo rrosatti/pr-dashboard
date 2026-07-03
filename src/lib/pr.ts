@@ -75,13 +75,10 @@ const buildReviewSummary = (
   };
 };
 
-let _currentUser = "";
-
-export const setCurrentUser = (username: string) => {
-  _currentUser = username;
-};
-
-const enrichPR = async (item: SearchItem): Promise<PullRequest> => {
+const enrichPR = async (
+  item: SearchItem,
+  currentUser: string,
+): Promise<PullRequest> => {
   const repo = item.repository_url.replace("https://api.github.com/repos/", "");
   const detail = await fetchGitHub<PRDetail>(
     `/repos/${repo}/pulls/${item.number}`,
@@ -92,7 +89,7 @@ const enrichPR = async (item: SearchItem): Promise<PullRequest> => {
     const data = await fetchGitHub<ReviewResponse[]>(
       `/repos/${repo}/pulls/${item.number}/reviews`,
     );
-    reviews = buildReviewSummary(data, _currentUser);
+    reviews = buildReviewSummary(data, currentUser);
   } catch {
     // no review access
   }
@@ -121,7 +118,7 @@ export const fetchPRsNeedingReview = async (
   const data = await fetchGitHub<SearchResponse>(
     `/search/issues?q=${q}&per_page=${PER_PAGE}`,
   );
-  return Promise.all(data.items.map(enrichPR));
+  return Promise.all(data.items.map((item) => enrichPR(item, username)));
 };
 
 export const fetchMyPRs = async (
@@ -133,7 +130,7 @@ export const fetchMyPRs = async (
   const data = await fetchGitHub<SearchResponse>(
     `/search/issues?q=${q}&per_page=${PER_PAGE}`,
   );
-  return Promise.all(data.items.map(enrichPR));
+  return Promise.all(data.items.map((item) => enrichPR(item, username)));
 };
 
 export const estimateReviewTime = (
