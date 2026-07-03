@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Box, Heading, Button, HStack, Avatar } from '@chakra-ui/react'
 import LoginScreen from './LoginScreen'
 import RepoSettings from './RepoSettings'
+import Dashboard from './Dashboard'
 import { getToken, getCachedUser, clearAuth, type GitHubUser } from './lib/github'
 
 function App() {
@@ -34,7 +35,7 @@ function App() {
           </Button>
         </HStack>
       </HStack>
-      <Box>Dashboard coming soon...</Box>
+      <Dashboard user={user} />
     </Box>
   )
 }
