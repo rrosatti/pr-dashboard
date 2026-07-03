@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { Box, Badge, Heading, HStack, Link, Spinner, Text, VStack, Avatar } from '@chakra-ui/react'
 import { type GitHubUser } from './lib/github'
 import { type PullRequest, fetchPRsNeedingReview, fetchMyPRs, estimateReviewTime, timeAgo } from './lib/pr'
 import { getTrackedRepos } from './lib/repos'
+import { requestNotificationPermission, checkForUpdates } from './lib/notifications'
+
+const POLL_INTERVAL = 5 * 60 * 1000
 
 interface Props {
   user: GitHubUser
@@ -49,27 +52,37 @@ export default function Dashboard({ user }: Props) {
   const [myPRs, setMyPRs] = useState<PullRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const isFirstLoad = useRef(true)
+
+  const load = useCallback(async () => {
+    if (isFirstLoad.current) setLoading(true)
+    setError(null)
+    try {
+      const repos = getTrackedRepos()
+      const [review, authored] = await Promise.all([
+        fetchPRsNeedingReview(user.login, repos),
+        fetchMyPRs(user.login, repos),
+      ])
+      setNeedsReview(review)
+      setMyPRs(authored)
+
+      if (!isFirstLoad.current) {
+        checkForUpdates([...review, ...authored])
+      }
+      isFirstLoad.current = false
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load PRs')
+    } finally {
+      setLoading(false)
+    }
+  }, [user.login])
 
   useEffect(() => {
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const repos = getTrackedRepos()
-        const [review, authored] = await Promise.all([
-          fetchPRsNeedingReview(user.login, repos),
-          fetchMyPRs(user.login, repos),
-        ])
-        setNeedsReview(review)
-        setMyPRs(authored)
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Failed to load PRs')
-      } finally {
-        setLoading(false)
-      }
-    }
+    requestNotificationPermission()
     load()
-  }, [user.login])
+    const id = setInterval(load, POLL_INTERVAL)
+    return () => clearInterval(id)
+  }, [load])
 
   if (loading) {
     return (
