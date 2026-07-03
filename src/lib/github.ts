@@ -1,4 +1,5 @@
 const CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID
+const AUTH_PROXY = import.meta.env.VITE_AUTH_PROXY_URL
 
 const TOKEN_KEY = 'gh_token'
 const USER_KEY = 'gh_user'
@@ -32,7 +33,7 @@ export interface GitHubUser {
 }
 
 export async function requestDeviceCode(): Promise<DeviceCodeResponse> {
-  const res = await fetch('https://github.com/login/device/code', {
+  const res = await fetch(`${AUTH_PROXY}/login/device/code`, {
     method: 'POST',
     headers: {
       Accept: 'application/json',
@@ -49,7 +50,7 @@ export async function pollForToken(
   signal?: AbortSignal
 ): Promise<string> {
   const poll = async (): Promise<string> => {
-    const res = await fetch('https://github.com/login/oauth/access_token', {
+    const res = await fetch(`${AUTH_PROXY}/login/oauth/access_token`, {
       method: 'POST',
       headers: {
         Accept: 'application/json',

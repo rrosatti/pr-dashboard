@@ -1,32 +1,57 @@
-# React + TypeScript + Vite
+# PR Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A personal dashboard to track pull requests across multiple GitHub repositories. Shows PRs that need your review and PRs you've authored, with estimated review time and browser notifications for updates.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **GitHub login** via device flow (no backend needed for auth)
+- **Track multiple repos** — configurable list stored in your browser
+- **"Needs My Review"** — PRs where your review is requested
+- **"My PRs"** — PRs you've authored with review status
+- **Review status** — shows both your personal review state and overall approvals
+- **Estimated review time** — based on lines changed
+- **Browser notifications** — polls every 5 minutes and notifies on PR updates
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Prerequisites
 
-## Expanding the Oxlint configuration
+- Node.js 20.19+ or 22+ (see `.nvmrc`)
+- Yarn
+- A [GitHub App](https://github.com/settings/apps/new) with device flow enabled
+- A [Cloudflare Worker](https://workers.cloudflare.com/) to proxy GitHub OAuth (needed for CORS)
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+### Local development
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+1. Clone the repo
+2. Copy `.env` to `.env.local` and fill in the values:
+   - `VITE_GITHUB_CLIENT_ID` — your GitHub App's Client ID
+   - `VITE_AUTH_PROXY_URL` — your Cloudflare Worker URL
+3. `yarn install`
+4. `yarn dev`
+
+### Deploy to GitHub Pages
+
+1. In your repo settings, go to **Settings > Pages > Source** and select **GitHub Actions**
+2. Add repository secrets (**Settings > Secrets and variables > Actions**):
+   - `VITE_GITHUB_CLIENT_ID`
+   - `VITE_AUTH_PROXY_URL`
+3. Push to `main` — the GitHub Actions workflow deploys automatically
+
+### Cloudflare Worker
+
+The `worker/` directory contains a small CORS proxy for GitHub's OAuth device flow endpoints. Deploy it with:
+
+```bash
+cd worker
+npx wrangler login
+npx wrangler deploy
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+## Tech Stack
+
+- React + TypeScript + Vite
+- Chakra UI
+- GitHub REST API
+- Cloudflare Workers (OAuth proxy)
+- GitHub Pages (hosting)
