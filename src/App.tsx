@@ -1,25 +1,35 @@
-import { useState } from 'react'
-import { Box, Heading, Button, HStack, Avatar } from '@chakra-ui/react'
-import LoginScreen from './LoginScreen'
-import RepoSettings from './RepoSettings'
-import Dashboard from './Dashboard'
-import { getToken, getCachedUser, clearAuth, type GitHubUser } from './lib/github'
+import { useState } from "react";
+import { Box, Heading, Button, HStack, Avatar } from "@chakra-ui/react";
+import LoginScreen from "./LoginScreen";
+import RepoSettings from "./RepoSettings";
+import Dashboard from "./Dashboard";
+import {
+  getToken,
+  getCachedUser,
+  clearAuth,
+  type GitHubUser,
+} from "./lib/github";
 
-function App() {
+const App = () => {
   const [user, setUser] = useState<GitHubUser | null>(() =>
-    getToken() ? getCachedUser() : null
-  )
-  const [showSettings, setShowSettings] = useState(false)
+    getToken() ? getCachedUser() : null,
+  );
+  const [showSettings, setShowSettings] = useState(false);
 
-  if (!user) return <LoginScreen onLogin={setUser} />
-  if (showSettings) return <RepoSettings onClose={() => setShowSettings(false)} />
+  if (!user) return <LoginScreen onLogin={setUser} />;
+  if (showSettings)
+    return <RepoSettings onClose={() => setShowSettings(false)} />;
 
   return (
     <Box p={4}>
       <HStack justifyContent="space-between" mb={6}>
         <Heading size="lg">PR Dashboard</Heading>
         <HStack gap={3}>
-          <Button variant="ghost" size="sm" onClick={() => setShowSettings(true)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowSettings(true)}
+          >
             Settings
           </Button>
           <Avatar.Root size="sm">
@@ -29,7 +39,10 @@ function App() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { clearAuth(); setUser(null) }}
+            onClick={() => {
+              clearAuth();
+              setUser(null);
+            }}
           >
             Logout
           </Button>
@@ -37,7 +50,7 @@ function App() {
       </HStack>
       <Dashboard user={user} />
     </Box>
-  )
-}
+  );
+};
 
-export default App
+export default App;
