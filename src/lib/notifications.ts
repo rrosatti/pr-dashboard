@@ -1,24 +1,5 @@
+import { useStore } from "./store";
 import { type PullRequest } from "./pr";
-
-const LAST_SEEN_KEY = "pr_last_seen";
-
-interface PRSnapshot {
-  url: string;
-  updated_at: string;
-}
-
-const getLastSeen = (): Record<string, PRSnapshot> => {
-  const raw = localStorage.getItem(LAST_SEEN_KEY);
-  return raw ? JSON.parse(raw) : {};
-};
-
-const setLastSeen = (prs: PullRequest[]) => {
-  const snapshot: Record<string, PRSnapshot> = {};
-  for (const pr of prs) {
-    snapshot[pr.html_url] = { url: pr.html_url, updated_at: pr.updated_at };
-  }
-  localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(snapshot));
-};
 
 export const requestNotificationPermission = async (): Promise<boolean> => {
   if (!("Notification" in window)) return false;
@@ -29,7 +10,7 @@ export const requestNotificationPermission = async (): Promise<boolean> => {
 };
 
 export const checkForUpdates = (allPRs: PullRequest[]) => {
-  const lastSeen = getLastSeen();
+  const lastSeen = useStore.getState().lastSeen;
 
   for (const pr of allPRs) {
     const prev = lastSeen[pr.html_url];
@@ -44,7 +25,7 @@ export const checkForUpdates = (allPRs: PullRequest[]) => {
     }
   }
 
-  setLastSeen(allPRs);
+  useStore.getState().setLastSeen(allPRs);
 };
 
 const notify = (title: string, body: string, url: string) => {

@@ -9,14 +9,16 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { getTrackedRepos, setTrackedRepos } from "./lib/repos";
+import { useStore } from "./lib/store";
 
 interface Props {
   onClose: () => void;
 }
 
 export const RepoSettings = ({ onClose }: Props) => {
-  const [repos, setRepos] = useState(getTrackedRepos);
+  const storedRepos = useStore((s) => s.trackedRepos);
+  const setTrackedRepos = useStore((s) => s.setTrackedRepos);
+  const [repos, setRepos] = useState(storedRepos);
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
 

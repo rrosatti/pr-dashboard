@@ -16,11 +16,10 @@ import {
   type ReviewSummary,
   fetchPRsNeedingReview,
   fetchMyPRs,
-  setCurrentUser,
   estimateReviewTime,
   timeAgo,
 } from "./lib/pr";
-import { getTrackedRepos } from "./lib/repos";
+import { useStore } from "./lib/store";
 import {
   requestNotificationPermission,
   checkForUpdates,
@@ -137,7 +136,7 @@ export const Dashboard = ({ user }: Props) => {
     if (isFirstLoad.current) setLoading(true);
     setError(null);
     try {
-      const repos = getTrackedRepos();
+      const repos = useStore.getState().trackedRepos;
       const [review, authored] = await Promise.all([
         fetchPRsNeedingReview(user.login, repos),
         fetchMyPRs(user.login, repos),
@@ -157,7 +156,6 @@ export const Dashboard = ({ user }: Props) => {
   }, [user.login]);
 
   useEffect(() => {
-    setCurrentUser(user.login);
     requestNotificationPermission();
     load();
     const id = setInterval(load, POLL_INTERVAL);

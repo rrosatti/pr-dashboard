@@ -3,20 +3,16 @@ import { Box, Heading, Button, HStack, Avatar } from "@chakra-ui/react";
 import LoginScreen from "./LoginScreen";
 import RepoSettings from "./RepoSettings";
 import Dashboard from "./Dashboard";
-import {
-  getToken,
-  getCachedUser,
-  clearAuth,
-  type GitHubUser,
-} from "./lib/github";
+import { useStore } from "./lib/store";
+import { type GitHubUser } from "./lib/github";
 
 const App = () => {
-  const [user, setUser] = useState<GitHubUser | null>(() =>
-    getToken() ? getCachedUser() : null,
-  );
+  const user = useStore((s) => s.user);
+  const clearAuth = useStore((s) => s.clearAuth);
+  const setUser = useStore((s) => s.setUser);
   const [showSettings, setShowSettings] = useState(false);
 
-  if (!user) return <LoginScreen onLogin={setUser} />;
+  if (!user) return <LoginScreen onLogin={(u: GitHubUser) => setUser(u)} />;
   if (showSettings)
     return <RepoSettings onClose={() => setShowSettings(false)} />;
 
@@ -36,14 +32,7 @@ const App = () => {
             <Avatar.Image src={user.avatar_url} alt={user.login} />
             <Avatar.Fallback>{user.login[0]}</Avatar.Fallback>
           </Avatar.Root>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              clearAuth();
-              setUser(null);
-            }}
-          >
+          <Button variant="ghost" size="sm" onClick={() => clearAuth()}>
             Logout
           </Button>
         </HStack>
