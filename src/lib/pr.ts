@@ -1,5 +1,12 @@
 import { fetchGitHub } from './github'
 
+export interface ReviewSummary {
+  approvals: number
+  changesRequested: number
+  total: number
+  myReview?: string
+}
+
 export interface PullRequest {
   number: number
   title: string
@@ -10,7 +17,7 @@ export interface PullRequest {
   deletions: number
   changed_files: number
   repo: string
-  review_decision?: string
+  reviews: ReviewSummary
   draft: boolean
 }
 
@@ -37,17 +44,46 @@ interface PRDetail {
 
 interface ReviewResponse {
   state: string
+  user: { login: string }
+}
+
+function buildReviewSummary(reviews: ReviewResponse[], currentUser: string): ReviewSummary {
+  // GitHub returns all reviews chronologically; keep only each user's latest non-comment review
+  const latestByUser = new Map<string, string>()
+  for (const r of reviews) {
+    if (r.state === 'COMMENTED') continue
+    latestByUser.set(r.user.login, r.state)
+  }
+
+  let approvals = 0
+  let changesRequested = 0
+  for (const state of latestByUser.values()) {
+    if (state === 'APPROVED') approvals++
+    if (state === 'CHANGES_REQUESTED') changesRequested++
+  }
+
+  return {
+    approvals,
+    changesRequested,
+    total: latestByUser.size,
+    myReview: latestByUser.get(currentUser),
+  }
+}
+
+let _currentUser = ''
+
+export function setCurrentUser(username: string) {
+  _currentUser = username
 }
 
 async function enrichPR(item: SearchItem): Promise<PullRequest> {
   const repo = item.repository_url.replace('https://api.github.com/repos/', '')
   const detail = await fetchGitHub<PRDetail>(`/repos/${repo}/pulls/${item.number}`)
 
-  let review_decision: string | undefined
+  let reviews: ReviewSummary = { approvals: 0, changesRequested: 0, total: 0 }
   try {
-    const reviews = await fetchGitHub<ReviewResponse[]>(`/repos/${repo}/pulls/${item.number}/reviews`)
-    const latest = reviews.filter((r) => r.state !== 'COMMENTED').pop()
-    review_decision = latest?.state
+    const data = await fetchGitHub<ReviewResponse[]>(`/repos/${repo}/pulls/${item.number}/reviews`)
+    reviews = buildReviewSummary(data, _currentUser)
   } catch {
     // no review access
   }
@@ -62,7 +98,7 @@ async function enrichPR(item: SearchItem): Promise<PullRequest> {
     deletions: detail.deletions,
     changed_files: detail.changed_files,
     repo,
-    review_decision,
+    reviews,
     draft: item.draft,
   }
 }

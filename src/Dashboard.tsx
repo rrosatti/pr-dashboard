@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { Box, Badge, Heading, HStack, Link, Spinner, Text, VStack, Avatar } from '@chakra-ui/react'
 import { type GitHubUser } from './lib/github'
-import { type PullRequest, fetchPRsNeedingReview, fetchMyPRs, estimateReviewTime, timeAgo } from './lib/pr'
+import { type PullRequest, type ReviewSummary, fetchPRsNeedingReview, fetchMyPRs, setCurrentUser, estimateReviewTime, timeAgo } from './lib/pr'
 import { getTrackedRepos } from './lib/repos'
 import { requestNotificationPermission, checkForUpdates } from './lib/notifications'
 
@@ -11,11 +11,22 @@ interface Props {
   user: GitHubUser
 }
 
-function reviewBadge(decision?: string) {
-  if (!decision) return <Badge colorPalette="gray">Pending</Badge>
-  if (decision === 'APPROVED') return <Badge colorPalette="green">Approved</Badge>
-  if (decision === 'CHANGES_REQUESTED') return <Badge colorPalette="red">Changes Requested</Badge>
-  return <Badge colorPalette="gray">{decision}</Badge>
+function myReviewBadge(state?: string) {
+  if (!state) return <Badge colorPalette="gray" variant="outline" fontSize="xs">You: not reviewed</Badge>
+  if (state === 'APPROVED') return <Badge colorPalette="green" variant="outline" fontSize="xs">You: approved</Badge>
+  if (state === 'CHANGES_REQUESTED') return <Badge colorPalette="red" variant="outline" fontSize="xs">You: changes requested</Badge>
+  return <Badge colorPalette="gray" variant="outline" fontSize="xs">You: {state.toLowerCase()}</Badge>
+}
+
+function overallReviewBadge(reviews: ReviewSummary) {
+  if (reviews.total === 0) return <Badge colorPalette="gray" fontSize="xs">No reviews</Badge>
+  const parts = []
+  if (reviews.approvals > 0) parts.push(`${reviews.approvals} approved`)
+  if (reviews.changesRequested > 0) parts.push(`${reviews.changesRequested} changes req.`)
+  const pending = reviews.total - reviews.approvals - reviews.changesRequested
+  if (pending > 0) parts.push(`${pending} pending`)
+  const palette = reviews.changesRequested > 0 ? 'red' : reviews.approvals > 0 ? 'green' : 'gray'
+  return <Badge colorPalette={palette} fontSize="xs">{parts.join(', ')}</Badge>
 }
 
 function PRCard({ pr }: { pr: PullRequest }) {
@@ -41,7 +52,8 @@ function PRCard({ pr }: { pr: PullRequest }) {
         <Text>#{pr.number}</Text>
         <Text>+{pr.additions} −{pr.deletions}</Text>
         <Text>{timeAgo(pr.updated_at)}</Text>
-        {pr.review_decision && reviewBadge(pr.review_decision)}
+        {myReviewBadge(pr.reviews.myReview)}
+        {overallReviewBadge(pr.reviews)}
       </HStack>
     </Box>
   )
@@ -78,6 +90,7 @@ export default function Dashboard({ user }: Props) {
   }, [user.login])
 
   useEffect(() => {
+    setCurrentUser(user.login)
     requestNotificationPermission()
     load()
     const id = setInterval(load, POLL_INTERVAL)
