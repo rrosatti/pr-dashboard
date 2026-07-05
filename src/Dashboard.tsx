@@ -50,6 +50,12 @@ const myReviewBadge = (state?: string) => {
         You: changes requested
       </Badge>
     );
+  if (state === "COMMENTED")
+    return (
+      <Badge colorPalette="gray" variant="outline" fontSize="xs">
+        You: commented
+      </Badge>
+    );
   return (
     <Badge colorPalette="gray" variant="outline" fontSize="xs">
       You: {state.toLowerCase()}
@@ -64,22 +70,19 @@ const overallReviewBadge = (reviews: ReviewSummary) => {
         No reviews
       </Badge>
     );
-  const parts = [];
-  if (reviews.approvals > 0) parts.push(`${reviews.approvals} approved`);
-  if (reviews.changesRequested > 0)
-    parts.push(`${reviews.changesRequested} changes req.`);
-  const pending = reviews.total - reviews.approvals - reviews.changesRequested;
-  if (pending > 0) parts.push(`${pending} pending`);
-  const palette =
-    reviews.changesRequested > 0
-      ? "red"
-      : reviews.approvals > 0
-        ? "green"
-        : "gray";
   return (
-    <Badge colorPalette={palette} fontSize="xs">
-      {parts.join(", ")}
-    </Badge>
+    <>
+      {reviews.approvals > 0 && (
+        <Badge colorPalette="green" fontSize="xs">
+          {reviews.approvals} approved
+        </Badge>
+      )}
+      {reviews.changesRequested > 0 && (
+        <Badge colorPalette="red" fontSize="xs">
+          {reviews.changesRequested} changes req.
+        </Badge>
+      )}
+    </>
   );
 };
 
@@ -119,6 +122,11 @@ const PRCard = ({ pr }: { pr: PullRequest }) => {
         </Text>
         <Text>{timeAgo(pr.updated_at)}</Text>
         {myReviewBadge(pr.reviews.myReview)}
+        {pr.staleReview && (
+          <Badge colorPalette="orange" variant="outline" fontSize="xs">
+            New commits since your review
+          </Badge>
+        )}
         {overallReviewBadge(pr.reviews)}
       </HStack>
     </Box>
@@ -127,6 +135,7 @@ const PRCard = ({ pr }: { pr: PullRequest }) => {
 
 export const Dashboard = ({ user }: Props) => {
   const [needsReview, setNeedsReview] = useState<PullRequest[]>([]);
+  const [approvedByMe, setApprovedByMe] = useState<PullRequest[]>([]);
   const [myPRs, setMyPRs] = useState<PullRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +150,16 @@ export const Dashboard = ({ user }: Props) => {
         fetchPRsNeedingReview(user.login, repos),
         fetchMyPRs(user.login, repos),
       ]);
-      setNeedsReview(review);
+      setNeedsReview(
+        review.filter(
+          (pr) => pr.reviews.myReview !== "APPROVED" || pr.staleReview,
+        ),
+      );
+      setApprovedByMe(
+        review.filter(
+          (pr) => pr.reviews.myReview === "APPROVED" && !pr.staleReview,
+        ),
+      );
       setMyPRs(authored);
 
       if (!isFirstLoad.current) {
@@ -195,6 +213,19 @@ export const Dashboard = ({ user }: Props) => {
           ))}
         </VStack>
       </Box>
+
+      {approvedByMe.length > 0 && (
+        <Box>
+          <Heading size="md" mb={3}>
+            Approved by Me ({approvedByMe.length})
+          </Heading>
+          <VStack gap={2} align="stretch">
+            {approvedByMe.map((pr) => (
+              <PRCard key={pr.html_url} pr={pr} />
+            ))}
+          </VStack>
+        </Box>
+      )}
 
       <Box>
         <Heading size="md" mb={3}>
