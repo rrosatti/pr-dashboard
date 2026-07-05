@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   Box,
   Badge,
@@ -9,6 +9,8 @@ import {
   Text,
   VStack,
   Avatar,
+  Input,
+  Wrap,
 } from "@chakra-ui/react";
 import { type GitHubUser } from "./lib/github";
 import {
@@ -26,6 +28,12 @@ import {
 } from "./lib/notifications";
 
 const POLL_INTERVAL = 5 * 60 * 1000;
+const STATE_OPTIONS = [
+  "NOT_REVIEWED",
+  "APPROVED",
+  "CHANGES_REQUESTED",
+  "COMMENTED",
+];
 
 interface Props {
   user: GitHubUser;
@@ -141,6 +149,61 @@ export const Dashboard = ({ user }: Props) => {
   const [error, setError] = useState<string | null>(null);
   const isFirstLoad = useRef(true);
 
+  const [search, setSearch] = useState("");
+  const [repoFilter, setRepoFilter] = useState<string[]>([]);
+  const [stateFilter, setStateFilter] = useState<string[]>([]);
+
+  const allPRs = useMemo(
+    () => [...needsReview, ...approvedByMe, ...myPRs],
+    [needsReview, approvedByMe, myPRs],
+  );
+
+  const availableRepos = useMemo(
+    () => [...new Set(allPRs.map((pr) => pr.repo))].sort(),
+    [allPRs],
+  );
+
+  const matches = useCallback(
+    (pr: PullRequest) => {
+      if (search) {
+        const q = search.toLowerCase();
+        if (
+          !pr.title.toLowerCase().includes(q) &&
+          !pr.user.login.toLowerCase().includes(q) &&
+          !pr.repo.toLowerCase().includes(q) &&
+          !pr.number.toString().includes(q)
+        )
+          return false;
+      }
+      if (repoFilter.length > 0 && !repoFilter.includes(pr.repo)) return false;
+      if (stateFilter.length > 0) {
+        const s = pr.reviews.myReview ?? "NOT_REVIEWED";
+        if (!stateFilter.includes(s)) return false;
+      }
+      return true;
+    },
+    [search, repoFilter, stateFilter],
+  );
+
+  const filteredNeedsReview = useMemo(
+    () => needsReview.filter(matches),
+    [needsReview, matches],
+  );
+  const filteredApproved = useMemo(
+    () => approvedByMe.filter(matches),
+    [approvedByMe, matches],
+  );
+  const filteredMyPRs = useMemo(() => myPRs.filter(matches), [myPRs, matches]);
+
+  const toggleFilter = (
+    arr: string[],
+    val: string,
+    set: (v: string[]) => void,
+  ) => set(arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]);
+
+  const anyFilterActive =
+    search || repoFilter.length > 0 || stateFilter.length > 0;
+
   const load = useCallback(async () => {
     if (isFirstLoad.current) setLoading(true);
     setError(null);
@@ -199,28 +262,132 @@ export const Dashboard = ({ user }: Props) => {
   return (
     <VStack gap={6} align="stretch">
       <Box>
+        <Input
+          placeholder="Search PRs by title, author, repo, number, label…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          mb={3}
+        />
+        {anyFilterActive && (
+          <HStack gap={2} wrap="wrap" mb={2}>
+            <Text fontSize="xs" color="fg.muted">
+              Filters:
+            </Text>
+            {repoFilter.map((r) => (
+              <Badge
+                key={r}
+                colorPalette="blue"
+                cursor="pointer"
+                fontSize="xs"
+                onClick={() => toggleFilter(repoFilter, r, setRepoFilter)}
+              >
+                {r} ✕
+              </Badge>
+            ))}
+            {stateFilter.map((s) => (
+              <Badge
+                key={s}
+                colorPalette="gray"
+                cursor="pointer"
+                fontSize="xs"
+                onClick={() => toggleFilter(stateFilter, s, setStateFilter)}
+              >
+                {s === "NOT_REVIEWED" ? "Not reviewed" : s.toLowerCase()} ✕
+              </Badge>
+            ))}
+          </HStack>
+        )}
+        <Wrap gap={2} mb={4}>
+          <Badge
+            colorPalette={repoFilter.length === 0 ? "gray" : undefined}
+            variant={repoFilter.length === 0 ? "outline" : "solid"}
+            cursor="pointer"
+            fontSize="xs"
+            onClick={() =>
+              setRepoFilter(repoFilter.length > 0 ? [] : [...availableRepos])
+            }
+          >
+            {repoFilter.length === 0
+              ? "All repos"
+              : `${repoFilter.length} repos`}
+          </Badge>
+          {availableRepos.map((r) => (
+            <Badge
+              key={r}
+              colorPalette="blue"
+              variant={repoFilter.includes(r) ? "solid" : "outline"}
+              cursor="pointer"
+              fontSize="xs"
+              onClick={() => toggleFilter(repoFilter, r, setRepoFilter)}
+            >
+              {r}
+            </Badge>
+          ))}
+        </Wrap>
+        <Wrap gap={2} mb={4}>
+          <Badge
+            colorPalette="gray"
+            variant={
+              stateFilter.length === STATE_OPTIONS.length ? "solid" : "outline"
+            }
+            cursor="pointer"
+            fontSize="xs"
+            onClick={() =>
+              setStateFilter(
+                stateFilter.length === STATE_OPTIONS.length
+                  ? []
+                  : [...STATE_OPTIONS],
+              )
+            }
+          >
+            All states
+          </Badge>
+          {STATE_OPTIONS.map((s) => (
+            <Badge
+              key={s}
+              colorPalette={
+                s === "APPROVED"
+                  ? "green"
+                  : s === "CHANGES_REQUESTED"
+                    ? "red"
+                    : "gray"
+              }
+              variant={stateFilter.includes(s) ? "solid" : "outline"}
+              cursor="pointer"
+              fontSize="xs"
+              onClick={() => toggleFilter(stateFilter, s, setStateFilter)}
+            >
+              {s === "NOT_REVIEWED" ? "Not reviewed" : s.toLowerCase()}
+            </Badge>
+          ))}
+        </Wrap>
+      </Box>
+
+      <Box>
         <Heading size="md" mb={3}>
-          Needs My Review ({needsReview.length})
+          Needs My Review ({filteredNeedsReview.length})
         </Heading>
         <VStack gap={2} align="stretch">
-          {needsReview.length === 0 && (
+          {filteredNeedsReview.length === 0 && (
             <Text color="fg.muted" fontSize="sm">
-              No PRs waiting for your review
+              {anyFilterActive
+                ? "No matching PRs"
+                : "No PRs waiting for your review"}
             </Text>
           )}
-          {needsReview.map((pr) => (
+          {filteredNeedsReview.map((pr) => (
             <PRCard key={pr.html_url} pr={pr} />
           ))}
         </VStack>
       </Box>
 
-      {approvedByMe.length > 0 && (
+      {filteredApproved.length > 0 && (
         <Box>
           <Heading size="md" mb={3}>
-            Approved by Me ({approvedByMe.length})
+            Approved by Me ({filteredApproved.length})
           </Heading>
           <VStack gap={2} align="stretch">
-            {approvedByMe.map((pr) => (
+            {filteredApproved.map((pr) => (
               <PRCard key={pr.html_url} pr={pr} />
             ))}
           </VStack>
@@ -229,15 +396,17 @@ export const Dashboard = ({ user }: Props) => {
 
       <Box>
         <Heading size="md" mb={3}>
-          My PRs ({myPRs.length})
+          My PRs ({filteredMyPRs.length})
         </Heading>
         <VStack gap={2} align="stretch">
-          {myPRs.length === 0 && (
+          {filteredMyPRs.length === 0 && (
             <Text color="fg.muted" fontSize="sm">
-              No open PRs authored by you
+              {anyFilterActive
+                ? "No matching PRs"
+                : "No open PRs authored by you"}
             </Text>
           )}
-          {myPRs.map((pr) => (
+          {filteredMyPRs.map((pr) => (
             <PRCard key={pr.html_url} pr={pr} />
           ))}
         </VStack>
