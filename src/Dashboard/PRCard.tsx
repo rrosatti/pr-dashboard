@@ -1,4 +1,4 @@
-import { Box, Badge, HStack, Link, Text, Avatar } from "@chakra-ui/react";
+import { Box, Badge, HStack, Link, Text, Avatar, Wrap } from "@chakra-ui/react";
 import {
   type PullRequest,
   type ReviewSummary,
@@ -89,7 +89,7 @@ export const PRCard = ({ pr }: { pr: PullRequest }) => {
           {estimateReviewTime(pr.additions, pr.deletions)}
         </Badge>
       </HStack>
-      <HStack gap={3} fontSize="xs" color="fg.muted">
+      <Wrap gap={2} fontSize="xs" color="fg.muted" align="center">
         <Text>{pr.repo}</Text>
         <Text>#{pr.number}</Text>
         <Text>
@@ -103,7 +103,7 @@ export const PRCard = ({ pr }: { pr: PullRequest }) => {
           </Badge>
         )}
         {overallReviewBadge(pr.reviews)}
-      </HStack>
+      </Wrap>
     </Box>
   );
 };
